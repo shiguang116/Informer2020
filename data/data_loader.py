@@ -138,10 +138,11 @@ class Dataset_ETT_minute(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
         
-        if self.features=='M' or self.features=='MS':
+        
+        if self.features=='M' or self.features=='MS':  #如果使用多维度的特征
             cols_data = df_raw.columns[1:]
             df_data = df_raw[cols_data]
-        elif self.features=='S':
+        elif self.features=='S':     #如果使用单维特征
             df_data = df_raw[[self.target]]
 
         if self.scale:
