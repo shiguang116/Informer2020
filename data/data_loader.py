@@ -47,8 +47,8 @@ class Dataset_ETT_hour(Dataset):
         df_raw = pd.read_csv(os.path.join(self.root_path,
                                           self.data_path))
 
-        border1s = [0, 12*30*24 - self.seq_len, 12*30*24+4*30*24 - self.seq_len]
-        border2s = [12*30*24, 12*30*24+4*30*24, 12*30*24+8*30*24]
+        border1s = [0, 12*30*24 - self.seq_len, 12*30*24+4*30*24 - self.seq_len]#三个值分别对应 训练，验证和测试集的起点
+        border2s = [12*30*24, 12*30*24+4*30*24, 12*30*24+8*30*24]#这里表示训练数据是一年，测试和验证都是4个月
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
         
@@ -58,6 +58,7 @@ class Dataset_ETT_hour(Dataset):
         elif self.features=='S':
             df_data = df_raw[[self.target]]
 
+        #数据标准化，使用train_data进行标准化
         if self.scale:
             train_data = df_data[border1s[0]:border2s[0]]
             self.scaler.fit(train_data.values)
@@ -69,6 +70,7 @@ class Dataset_ETT_hour(Dataset):
         df_stamp['date'] = pd.to_datetime(df_stamp.date)
         data_stamp = time_features(df_stamp, timeenc=self.timeenc, freq=self.freq)
 
+        #根据目前是训练还是测试验证集得到data_x和data_y，这里默认情况下好像是相同的
         self.data_x = data[border1:border2]
         if self.inverse:
             self.data_y = df_data.values[border1:border2]
@@ -76,19 +78,19 @@ class Dataset_ETT_hour(Dataset):
             self.data_y = data[border1:border2]
         self.data_stamp = data_stamp
     
-    def __getitem__(self, index):
-        s_begin = index
-        s_end = s_begin + self.seq_len
-        r_begin = s_end - self.label_len 
-        r_end = r_begin + self.label_len + self.pred_len
+    def __getitem__(self, index): #这里应该是得到一个batch的数据
+        s_begin = index #截取的起点
+        s_end = s_begin + self.seq_len  #截取的终点，截取一个seq_len的数据
+        r_begin = s_end - self.label_len #这里应该是截取标签，起点是数据的终点往前寻找label_len的长度
+        r_end = r_begin + self.label_len + self.pred_len #长度是label_len+pred_len。这个似乎对应文章中label_len为start token的位置
 
-        seq_x = self.data_x[s_begin:s_end]
+        seq_x = self.data_x[s_begin:s_end] #截取数据这里seq_x应该对应编码器的输入
         if self.inverse:
             seq_y = np.concatenate([self.data_x[r_begin:r_begin+self.label_len], self.data_y[r_begin+self.label_len:r_end]], 0)
         else:
-            seq_y = self.data_y[r_begin:r_end]
-        seq_x_mark = self.data_stamp[s_begin:s_end]
-        seq_y_mark = self.data_stamp[r_begin:r_end]
+            seq_y = self.data_y[r_begin:r_end] #这里的seq_y似乎应该对应解码器的输入
+        seq_x_mark = self.data_stamp[s_begin:s_end]# 他们对应的时间戳
+        seq_y_mark = self.data_stamp[r_begin:r_end]# 他们对应的时间戳
 
         return seq_x, seq_y, seq_x_mark, seq_y_mark
     
